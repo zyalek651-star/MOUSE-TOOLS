@@ -1,0 +1,57 @@
+name: Build Mouse Tools APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract project ZIP
+        run: |
+          ZIP=$(find . -maxdepth 2 -name 'TCOR_PROJECT_UPLOAD.zip' -print -quit)
+          if [ -n "$ZIP" ]; then
+            mkdir -p extracted
+            unzip -o "$ZIP" -d extracted
+          fi
+
+      - name: Locate Android project
+        run: |
+          if [ -f settings.gradle ]; then
+            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
+          elif [ -f extracted/settings.gradle ]; then
+            echo "PROJECT_DIR=extracted" >> "$GITHUB_ENV"
+          else
+            DIR=$(find extracted -name settings.gradle -type f -print -quit | xargs -r dirname)
+            if [ -z "$DIR" ]; then
+              echo "File settings.gradle tidak ditemukan"
+              exit 1
+            fi
+            echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build debug APK
+        run: |
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mouse-Tools-APK
+          path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
