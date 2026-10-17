@@ -3,8 +3,6 @@ name: Build Mouse Tools APK
 on:
   workflow_dispatch:
   push:
-    paths:
-      - '**'
 
 jobs:
   build:
@@ -22,32 +20,43 @@ jobs:
 
       - name: Extract project ZIP
         run: |
-          ZIP=$(find . -maxdepth 2 -name 'TCOR_PROJECT_UPLOAD.zip' -print -quit)
-          if [ -n "$ZIP" ]; then
-            mkdir -p extracted
-            unzip -o "$ZIP" -d extracted
+          mkdir -p extracted
+          ZIP=$(find . -name 'TCOR_PROJECT_UPLOAD.zip' -print -quit)
+          if [ -z "$ZIP" ]; then
+            echo "ZIP proyek tidak ditemukan"
+            exit 1
           fi
+          unzip -o "$ZIP" -d extracted
 
       - name: Locate Android project
         run: |
-          if [ -f settings.gradle ]; then
-            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
-          elif [ -f extracted/settings.gradle ]; then
-            echo "PROJECT_DIR=extracted" >> "$GITHUB_ENV"
-          else
-            DIR=$(find extracted -name settings.gradle -type f -print -quit | xargs -r dirname)
-            if [ -z "$DIR" ]; then
-              echo "File settings.gradle tidak ditemukan"
-              exit 1
-            fi
-            echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+          FILE=$(find extracted -name settings.gradle -type f -print -quit)
+          if [ -z "$FILE" ]; then
+            echo "settings.gradle tidak ditemukan"
+            exit 1
           fi
+          DIR=$(dirname "$FILE")
+          echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+          echo "Proyek ditemukan di: $DIR"
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Generate Gradle Wrapper
+        run: |
+          cd "$PROJECT_DIR"
+          gradle wrapper --gradle-version 8.7
 
       - name: Build debug APK
         run: |
           cd "$PROJECT_DIR"
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
