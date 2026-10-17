@@ -39,11 +39,13 @@ jobs:
           echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
           echo "Proyek ditemukan di: $DIR"
 
-      - name: Install Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses || true
+      - name: Install Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -58,7 +60,6 @@ jobs:
       - name: Build debug APK
         run: |
           cd "$PROJECT_DIR"
-          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
